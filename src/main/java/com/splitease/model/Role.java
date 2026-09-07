@@ -1,4 +1,6 @@
 package com.splitease.model;
 
-public class Role {
+public enum Role {
+    OWNER,
+    MEMBER
 }

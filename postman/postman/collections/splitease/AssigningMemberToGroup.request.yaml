@@ -1,0 +1,14 @@
+$kind: http-request
+description: ""
+url: http://localhost:8080/api/groups/1/members
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"userId\":3, \r
+
+    \    \"role\": \"MEMBER\"\r
+
+    }"
+order: 4458484676644315

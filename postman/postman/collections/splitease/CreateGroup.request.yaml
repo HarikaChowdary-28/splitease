@@ -1,0 +1,14 @@
+$kind: http-request
+description: ""
+url: http://localhost:8080/api/groups
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\":\"Goa trip\",\r
+
+    \    \"createdBy\":1\r
+
+    }"
+order: 4347858065304218

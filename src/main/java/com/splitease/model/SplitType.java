@@ -1,4 +1,7 @@
 package com.splitease.model;
 
-public class SplitType {
+public enum SplitType {
+    EQUAL, //split evenly among members
+    EXACT, //each person owes a specific amount
+    PERCENT //each person owes a percentage
 }

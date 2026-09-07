@@ -1,4 +1,6 @@
 package com.splitease.repository;
+import com.splitease.model.Expense;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public class ExpenseRepository {
+public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 }
