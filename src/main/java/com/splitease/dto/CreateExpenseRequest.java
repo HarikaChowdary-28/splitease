@@ -1,6 +1,7 @@
 package com.splitease.dto;
 
 import com.splitease.model.SplitType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Setter;
 import lombok.Getter;
@@ -25,5 +26,6 @@ public class CreateExpenseRequest {
     private SplitType splitType;
 
     @NotEmpty
-    private List<Long> participantIds; //user ids to split among people
+    @Valid
+    private List<SplitInput> splits; //user ids to split among people
 }

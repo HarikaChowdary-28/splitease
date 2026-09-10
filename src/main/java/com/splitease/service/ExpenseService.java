@@ -3,11 +3,15 @@ package com.splitease.service;
 import com.splitease.dto.CreateExpenseRequest;
 import com.splitease.dto.ExpenseResponse;
 import com.splitease.dto.ShareResponse;
+import com.splitease.dto.SplitInput;
+import com.splitease.exception.BadRequestException;
 import com.splitease.exception.NotFoundException;
 import com.splitease.model.*;
 import com.splitease.repository.GroupRepository;
 import com.splitease.repository.UserRepository;
 import com.splitease.repository.ExpenseRepository;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,25 +42,95 @@ public class ExpenseService {
         expense.setAmount(request.getAmount());
         expense.setSplitType(request.getSplitType());
 
-        //equal split divide amount evenly
-        int n=request.getParticipantIds().size();
-        BigDecimal perHead=request.getAmount().divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_UP);
+        List<ExpenseShare> shares=buildShares(expense, request);
+        expense.getShares().addAll(shares);
 
-        //build a share for each participant , linked to the expense
-        for(Long userId: request.getParticipantIds()){
-            User member=userRepository.findById(userId).orElseThrow(()->new NotFoundException("user not found:"+userId));
-            ExpenseShare share=new ExpenseShare();
-            share.setExpense(expense); //sets the FK
-            share.setUser(member);
-            share.setShareAmount(perHead);
-            expense.getShares().add(share); //parent--> holds child in its list
-        }
         //save once
         Expense saved=expenseRepository.save(expense);
 
         //entity->DTO
         return toResponse(saved);
     }
+    //split logic
+    private List<ExpenseShare> buildShares(Expense expense, CreateExpenseRequest request){
+        List<SplitInput> splits=request.getSplits();
+
+        //1. compute the rupee amount for each person based on split type
+        List<BigDecimal> amounts=switch (request.getSplitType()){
+            case EQUAL -> splitEqually(request.getAmount(), splits.size());
+            case EXACT -> splitExact(request.getAmount(), splits);
+            case PERCENT -> splitPercent(request.getAmount(), splits);
+        };
+
+        //2. turn each (user, amount) into an expenseshare linked to expense
+        List<ExpenseShare> shares=new ArrayList<>();
+        for(int i=0; i<splits.size(); i++){
+            Long userId=splits.get(i).getUserId();
+            User member=userRepository.findById(userId).orElseThrow(()-> new NotFoundException("user not found: "+userId));
+
+            ExpenseShare share=new ExpenseShare();
+            share.setExpense(expense);
+            share.setUser(member);
+            share.setShareAmount(amounts.get(i));
+            shares.add(share);
+        }
+        return shares;
+    }
+
+    private List<BigDecimal> splitEqually(@NotNull @Positive BigDecimal amount, int n) {
+        BigDecimal each=amount.divide(BigDecimal.valueOf(n), 2, RoundingMode.DOWN);
+        List<BigDecimal> result=new ArrayList<>();
+        BigDecimal running=BigDecimal.ZERO;
+        for (int i=0; i<n; i++){
+            result.add(each);
+            running=running.add(each);
+        }
+        //add the leftover paisa to the last guy so total matches the exact amount.
+        BigDecimal leftOver=amount.subtract(running);
+        result.set(n-1, result.get(n-1).add(leftOver));
+        return result;
+    }
+
+    private List<BigDecimal> splitExact(BigDecimal amount, List<SplitInput> splits) {
+        List<BigDecimal> result=new ArrayList<>();
+        BigDecimal sum=BigDecimal.ZERO;
+        for (SplitInput s: splits){
+            if(s.getValue()==null){
+                throw new BadRequestException("Each split needs a value (amount) for exact split");
+            }
+            result.add(s.getValue());
+            sum=sum.add(s.getValue());
+        }
+        if(sum.compareTo(amount)!=0){
+            throw new BadRequestException("Exact shares mush sum to "+amount+"but summed to "+sum);
+        }
+        return result;
+    }
+
+    private List<BigDecimal> splitPercent(BigDecimal amount, List<SplitInput> splits) {
+        BigDecimal pctSum=BigDecimal.ZERO;
+        for (SplitInput s: splits){
+            if(s.getValue()==null){
+                throw new BadRequestException("Each split needs a value (percentage) for percent split");
+            }
+            pctSum=pctSum.add(s.getValue());
+        }
+        if(pctSum.compareTo(BigDecimal.valueOf(100))!=0){
+            throw new BadRequestException("Percentages must sum to 100 but summed to "+pctSum);
+        }
+        List<BigDecimal> result=new ArrayList<>();
+        BigDecimal running=BigDecimal.ZERO;
+        for (SplitInput s:splits){
+            BigDecimal share=amount.multiply(s.getValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.DOWN);
+            result.add(share);
+            running=running.add(share);
+        }
+        BigDecimal leftOver=amount.subtract(running);
+        result.set(result.size()-1, result.get(result.size() -1).add(leftOver));
+        return result;
+    }
+
+    //entity -> DTO conversion
     private ExpenseResponse toResponse(Expense e){
         ExpenseResponse resp=new ExpenseResponse();
         resp.setId(e.getId());
