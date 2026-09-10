@@ -1,0 +1,20 @@
+$kind: http-request
+description: ""
+url: http://localhost:8080/api/groups/1/expenses
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"paidBy\": 1,\r
+
+    \  \"amount\": 1200,\r
+
+    \  \"description\": \"Cab\",\r
+
+    \  \"splitType\": \"EXACT\",\r
+
+    \  \"splits\": [ {\"userId\":1,\"value\":500}, {\"userId\":2,\"value\":400}, {\"userId\":3,\"value\":300} ]\r
+
+    }"
+order: 4500503610094014

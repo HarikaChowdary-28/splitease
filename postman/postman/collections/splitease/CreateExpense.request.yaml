@@ -1,0 +1,20 @@
+$kind: http-request
+description: ""
+url: http://localhost:8080/api/groups/1/expenses
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"paidBy\": 1,\r
+
+    \  \"amount\": 1200,\r
+
+    \  \"description\": \"Dinner\",\r
+
+    \  \"splitType\": \"EQUAL\",\r
+
+    \  \"participantIds\": [1, 2, 3]\r
+
+    }"
+order: 4477494696399454
